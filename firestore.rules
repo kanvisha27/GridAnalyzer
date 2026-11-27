@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// Grid Analyzer - Firestore security rules.
+// Access model: every document carries an `ownerId` equal to the Firebase Authentication uid
+// (the app signs users in ANONYMOUSLY). Only that uid can read, change or delete it.
+// Everything not listed below is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner() { return signedIn() && resource.data.ownerId == request.auth.uid; }
+    function createsOwn() { return signedIn() && request.resource.data.ownerId == request.auth.uid; }
+    function keepsOwner() { return request.resource.data.ownerId == resource.data.ownerId; }
+
+    function validGrid(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.referenceBus is string
+        && d.buses is list && d.buses.size() >= 2 && d.buses.size() <= 10
+        && d.lines is list && d.lines.size() >= 1 && d.lines.size() <= 60;
+    }
+    function validScenario(d) {
+      return d.gridId is string && d.name is string && d.name.size() <= 120 && d.overrides is map;
+    }
+    function validResult(d) {
+      return d.type in ['base', 'contingency']
+        && d.payload is string && d.payload.size() < 900000
+        && d.gridSnapshot is string && d.gridSnapshot.size() < 100000;
+    }
+
+    match /grids/{id} {
+      allow get, list, delete: if isOwner();
+      allow create: if createsOwn() && validGrid(request.resource.data);
+      allow update: if isOwner() && keepsOwner() && validGrid(request.resource.data);
+    }
+
+    match /demandscenarios/{id} {
+      allow get, list, delete: if isOwner();
+      allow create: if createsOwn() && validScenario(request.resource.data);
+      allow update: if isOwner() && keepsOwner() && validScenario(request.resource.data);
+    }
+
+    match /analysisresults/{id} {
+      allow get, list, delete: if isOwner();
+      allow create: if createsOwn() && validResult(request.resource.data);
+      allow update: if false;   // result snapshots are immutable
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

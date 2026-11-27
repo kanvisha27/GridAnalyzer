@@ -1,0 +1,27 @@
+# secrets
+.env
+.env.*
+!.env.example
+*service-account*.json
+*firebase-adminsdk*.json
+serviceAccountKey.json
+
+# node
+.firebase/
+firebase-debug*.log
+node_modules/
+frontend/dist/
+npm-debug.log*
+
+# python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
